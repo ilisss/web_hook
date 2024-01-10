@@ -1,60 +1,61 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
- 
+
+type Person struct {
+	Name string
+	Age int
+}
+
+var people []Person
+
 func main(){
-	db:=database {"shoes":50,"socks":5}
-	http.HandleFunc("/list",db.list)
-	http.HandleFunc("/price",db.price)
-	http.ListenAndServe(":80", nil)
+http.HandleFunc("/people", peopleHandler)
+http.HandleFunc("/health",healthCheckHandler)
+
+log.Println("server start listening on port 8080")
+
+err:=http.ListenAndServe("localhost:8080",nil)
+if err!=nil{
+	log.Fatal(err)
+}
 }
 
-type dollars float32
-
-func (d dollars) String() string {return fmt.Sprintf("$%.2f",d)}
-
-type database map[string]dollars
-
-func (db database) ServeHTTP (w http.ResponseWriter, req *http.Request){
-	switch req.URL.Path{
-	case "/list":
-		for item,price:=range db{
-		fmt.Fprintf(w,"%s:%s\n", item, price)
-	}
-	case "/price":
-	item:=req.URL.Query().Get("item")
-	price, ok:=db[item]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)//404
-		fmt.Fprintf(w,"нет товара: %q\n", item)
-		return
-	}
-	fmt.Fprintf(w, "%s\n", price)
-	
+func peopleHandler(w http.ResponseWriter, r * http.Request){
+	switch r.Method{
+	case http.MethodGet:
+		getPeople(w,r)
+	case http.MethodPost:
+		postPerson(w,r)
 	default:
-		w.WriteHeader(http.StatusNotFound)//404
-		fmt.Fprintf(w, "page is not found: %s\n",req.URL)
-
-	}	
-}
-
-func (db database) list (w http.ResponseWriter, req *http.Request){
-	for item,price :=range db{
-		fmt.Fprintf(w, "%s:,%s\n", item,price)
+		http.Error (w, "invalid http method", http.StatusMethodNotAllowed)	
 	}
 }
 
-func(db database) price(w http.ResponseWriter, req *http.Request){
-	item:=req.URL.Query().Get("item")
-	price, ok:=db[item]
+func getPeople(w  http.ResponseWriter, r *http.Request){
+	json.NewEncoder(w).Encode(people)
+	fmt.Fprintf(w,"post new person:'%v'", people)
+}
 
-	if!ok{
-		w.WriteHeader(http.StatusNotFound)//404
-		fmt.Fprintf(w,"no such item:%q\n", item)
+func postPerson(w http.ResponseWriter, r *http.Request){
+	var person Person
+	err:=json.NewDecoder(r.Body).Decode(&person)
+	if err!=nil{
+		http.Error(w, err.Error(),http.StatusInternalServerError)
 		return
 	}
-	fmt.Fprintf(w, "%s\n",price)
+
+	people=append(people, person)
+
+	fmt.Fprintf(w,"post new person:'%v'", person)
+}
+
+func healthCheckHandler(w http.ResponseWriter, r*http.Request){
+	fmt.Fprint(w,"http web-server works correct")
+
 }
