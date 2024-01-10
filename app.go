@@ -15,6 +15,12 @@ func main(){
 func (d dollars) String() string {return fmt.Sprintf("$%.2f",d)}
 type database map[string]dollars
 
+func (db database) ServeHTTP (w http.ResponseWriter, req *http.Request){
+	for item,price:=range db{
+		fmt.Fprintf(w,"%s:%s\n", item, price)
+	}
+}
+
 func (db database) list (w http.ResponseWriter, req *http.Request){
 	for item,price :=range db{
 		fmt.Fprintf(w, "%s:,%s\n", item,price)
